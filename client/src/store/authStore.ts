@@ -3,11 +3,12 @@ import { persist } from "zustand/middleware";
 
 export type Role = "ADMIN" | "PROPONENT" | "SCRUTINY" | "MOM_TEAM";
 
-interface User {
-  id:    string;
-  email: string;
-  name:  string;
-  role:  Role;
+export interface User {
+  id:           string;
+  email:        string;
+  name:         string;
+  role:         Role;
+  organization?: string;
 }
 
 interface AuthStore {
@@ -28,8 +29,3 @@ export const useAuthStore = create<AuthStore>()(
     { name: "cecb-auth" }
   )
 );
-```
-
-**`client/.env`**
-```
-VITE_API_URL=http://localhost:3000

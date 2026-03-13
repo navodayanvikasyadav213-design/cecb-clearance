@@ -8,7 +8,7 @@ import { api } from "../config/api";
 import Layout from "../components/Layout";
 import toast from "react-hot-toast";
 import { ChevronRight, ChevronLeft, Upload, MapPin } from "lucide-react";
-import { SECTORS, DISTRICTS } from "../mocks/applications";
+import { SECTORS, DISTRICTS } from "../mocks/application";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 

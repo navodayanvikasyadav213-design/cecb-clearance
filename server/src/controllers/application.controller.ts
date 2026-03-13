@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { PrismaClient, AppStatus } from "@prisma/client";
+import crypto from "crypto";
 import { AuthRequest } from "../types";
 import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../middleware/errorHandler";
@@ -11,6 +12,53 @@ import {
 } from "../routes/applications/application.schema";
 
 const prisma = new PrismaClient();
+
+// ── Upload Document ───────────────────────────────────────────────────────────
+export const uploadDocument = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const id = String(req.params.id);
+    const { docType } = req.body as { docType?: string };
+    const file = req.file;
+
+    if (!file) throw new AppError("File is required", 400);
+    if (!docType) throw new AppError("docType is required", 400);
+
+    const app = await prisma.application.findUnique({ where: { id } });
+    if (!app) throw new AppError("Application not found", 404);
+
+    if (app.proponentId !== req.user!.userId) {
+      throw new AppError("Forbidden", 403);
+    }
+
+    const fileHash = crypto
+      .createHash("sha256")
+      .update(`${file.filename}:${file.size}`)
+      .digest("hex");
+
+    const document = await prisma.document.create({
+      data: {
+        applicationId: id,
+        docType,
+        fileName: file.originalname,
+        fileUrl: `/uploads/documents/${file.filename}`,
+        fileHash,
+      },
+    });
+
+    await writeAuditEvent({
+      eventType: "DOCUMENT_UPLOADED",
+      actorId: req.user!.userId,
+      applicationId: id,
+      payload: {
+        documentId: document.id,
+        docType,
+        fileName: file.originalname,
+      },
+    });
+
+    res.status(201).json({ success: true, data: { document } });
+  }
+);
 
 // ── Create Draft ──────────────────────────────────────────────────────────────
 export const createApplication = asyncHandler(
@@ -57,7 +105,7 @@ export const getApplications = asyncHandler(
 // ── Get One ───────────────────────────────────────────────────────────────────
 export const getApplication = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { role, userId } = req.user!;
 
     const app = await prisma.application.findUnique({
@@ -90,7 +138,7 @@ export const getApplication = asyncHandler(
 // ── Update Draft ──────────────────────────────────────────────────────────────
 export const updateApplication = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const data   = req.body as UpdateApplicationInput;
 
     const app = await prisma.application.findUnique({ where: { id } });
@@ -112,7 +160,7 @@ export const updateApplication = asyncHandler(
 // ── Submit ────────────────────────────────────────────────────────────────────
 export const submitApplication = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
 
     const app = await prisma.application.findUnique({ where: { id } });
     if (!app) throw new AppError("Application not found", 404);
@@ -147,7 +195,7 @@ export const submitApplication = asyncHandler(
 // ── Scrutiny: Move to Under Scrutiny ─────────────────────────────────────────
 export const startScrutiny = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const app = await prisma.application.findUnique({ where: { id } });
     if (!app) throw new AppError("Application not found", 404);
 
@@ -172,7 +220,7 @@ export const startScrutiny = asyncHandler(
 // ── Scrutiny: Issue EDS ───────────────────────────────────────────────────────
 export const issueEds = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const { deficiencies } = req.body;
 
     if (!deficiencies) throw new AppError("Deficiencies required", 400);
@@ -203,7 +251,7 @@ export const issueEds = asyncHandler(
 // ── Scrutiny: Refer to Meeting ────────────────────────────────────────────────
 export const referApplication = asyncHandler(
   async (req: AuthRequest, res: Response) => {
-    const { id } = req.params;
+    const id = String(req.params.id);
 
     const app = await prisma.application.findUnique({ where: { id } });
     if (!app) throw new AppError("Application not found", 404);

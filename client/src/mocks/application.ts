@@ -2,18 +2,13 @@ export type AppStatus =
   | "DRAFT" | "SUBMITTED" | "UNDER_SCRUTINY"
   | "EDS"   | "REFERRED"  | "MOM_GENERATED" | "FINALIZED";
 
-export interface Application {
-  id:          string;
-  projectName: string;
-  sector:      string;
-  district:    string;
-  status:      AppStatus;
-  areaHa:      number;
-  createdAt:   string;
-  updatedAt:   string;
+export interface MockApplication {
+  id: string; projectName: string; sector: string;
+  district: string; status: AppStatus;
+  areaHa: number; createdAt: string; updatedAt: string;
 }
 
-export const MOCK_APPLICATIONS: Application[] = [
+export const MOCK_APPLICATIONS: MockApplication[] = [
   {
     id: "app-draft-001", projectName: "Kumar Steel Plant Unit 2",
     sector: "Iron & Steel", district: "Raipur",
@@ -35,12 +30,12 @@ export const MOCK_APPLICATIONS: Application[] = [
 ];
 
 export const SECTORS = [
-  "Iron & Steel", "Cement", "Thermal Power", "Solar Power",
-  "Mining", "Chemical", "Textile", "Paper & Pulp",
-  "Sugar", "Distillery", "Infrastructure", "Other",
+  "Iron & Steel","Cement","Thermal Power","Solar Power",
+  "Mining","Chemical","Textile","Paper & Pulp",
+  "Sugar","Distillery","Infrastructure","Other",
 ];
 
 export const DISTRICTS = [
-  "Raipur", "Bilaspur", "Durg", "Rajnandgaon",
-  "Korba", "Raigarh", "Jagdalpur", "Ambikapur",
+  "Raipur","Bilaspur","Durg","Rajnandgaon",
+  "Korba","Raigarh","Jagdalpur","Ambikapur",
 ];
