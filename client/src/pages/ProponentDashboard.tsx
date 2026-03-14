@@ -2,22 +2,19 @@ import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
 import Layout from "../components/Layout";
 import StatusBadge from "../components/StatusBadge";
-import { MOCK_APPLICATIONS } from "../mocks/application";
-import { PlusCircle, FileText, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { useApplications } from "../hooks/useApplications";
+import { PlusCircle, FileText, Clock, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
 export default function ProponentDashboard() {
   const user = useAuthStore((s) => s.user);
-
-  // Swap with real API on Day 4:
-  // const { data: applications = [] } = useApplications();
-  const applications = MOCK_APPLICATIONS;
+  const { data: applications = [], isLoading, error } = useApplications();
 
   const counts = {
     total:   applications.length,
-    draft:   applications.filter((a) => a.status === "DRAFT").length,
-    active:  applications.filter((a) =>
+    draft:   applications.filter((a: any) => a.status === "DRAFT").length,
+    active:  applications.filter((a: any) =>
                ["SUBMITTED","UNDER_SCRUTINY","EDS","REFERRED"].includes(a.status)).length,
-    cleared: applications.filter((a) => a.status === "FINALIZED").length,
+    cleared: applications.filter((a: any) => a.status === "FINALIZED").length,
   };
 
   return (
@@ -45,10 +42,10 @@ export default function ProponentDashboard() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Total",    value: counts.total,   icon: FileText,    bg: "bg-gray-50",    color: "text-gray-500"   },
-            { label: "Drafts",   value: counts.draft,   icon: Clock,       bg: "bg-amber-50",   color: "text-amber-500"  },
-            { label: "In Review",value: counts.active,  icon: AlertCircle, bg: "bg-blue-50",    color: "text-blue-500"   },
-            { label: "Cleared",  value: counts.cleared, icon: CheckCircle, bg: "bg-green-50",   color: "text-green-500"  },
+            { label: "Total",     value: counts.total,   icon: FileText,    bg: "bg-gray-50",    color: "text-gray-500"   },
+            { label: "Drafts",    value: counts.draft,   icon: Clock,       bg: "bg-amber-50",   color: "text-amber-500"  },
+            { label: "In Review", value: counts.active,  icon: AlertCircle, bg: "bg-blue-50",    color: "text-blue-500"   },
+            { label: "Cleared",   value: counts.cleared, icon: CheckCircle, bg: "bg-green-50",   color: "text-green-500"  },
           ].map((s) => (
             <div key={s.label}
                  className={`${s.bg} rounded-xl p-5 border border-white shadow-sm`}>
@@ -68,7 +65,14 @@ export default function ProponentDashboard() {
             </span>
           </div>
 
-          {applications.length === 0 ? (
+          {isLoading ? (
+            <div className="py-16 text-center">
+              <Loader2 size={28} className="text-gray-300 mx-auto mb-3 animate-spin" />
+              <p className="text-sm text-gray-400">Loading applications…</p>
+            </div>
+          ) : error ? (
+            <div className="py-12 text-center text-sm text-red-400">Failed to load applications.</div>
+          ) : applications.length === 0 ? (
             <div className="py-16 text-center">
               <FileText size={32} className="text-gray-200 mx-auto mb-3" />
               <p className="text-sm text-gray-400">No applications yet</p>
@@ -92,7 +96,7 @@ export default function ProponentDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {applications.map((app) => (
+                  {applications.map((app: any) => (
                     <tr key={app.id}
                         className="hover:bg-gray-50 cursor-pointer transition"
                         onClick={() => window.location.href = `/applications/${app.id}`}>

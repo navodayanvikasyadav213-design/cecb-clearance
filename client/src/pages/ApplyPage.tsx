@@ -25,7 +25,7 @@ const step1Schema = z.object({
   projectName: z.string().min(3, "Min 3 characters"),
   sector:      z.string().min(1, "Select a sector"),
   district:    z.string().min(1, "Select a district"),
-  areaHa:      z.coerce.number().positive("Must be positive"),
+  areaHa:      z.number({ message: "Must be a valid number" }).positive("Must be positive"),
   description: z.string().optional(),
 });
 
@@ -57,6 +57,7 @@ export default function ApplyPage() {
 
   // Step 2 data
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [gisFlags, setGisFlags] = useState<any[]>([]);
 
   // Step 3 data
   const [files, setFiles]       = useState<{ docType: string; file: File }[]>([]);
@@ -86,6 +87,7 @@ export default function ApplyPage() {
         ...step1,
         lat: position?.lat,
         lng: position?.lng,
+        gisRiskFlags: gisFlags, // save the discovered flags with the app
       });
       const appId = res.data.data.application.id;
 
@@ -200,7 +202,7 @@ export default function ApplyPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project Area (hectares) *
               </label>
-              <input {...register("areaHa")} type="number" step="0.1"
+              <input {...register("areaHa", { valueAsNumber: true })} type="number" step="0.1"
                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5
                                 focus:outline-none focus:ring-2 focus:ring-mid text-sm"
                      placeholder="e.g. 45.5" />
@@ -252,29 +254,59 @@ export default function ApplyPage() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution="© OpenStreetMap contributors"
                 />
-                <MapClickHandler onPick={(lat, lng) => setPosition({ lat, lng })} />
+                <MapClickHandler onPick={async (lat, lng) => {
+                  setPosition({ lat, lng });
+                  // Fetch GIS risk flags from server
+                  try {
+                    const res = await api.get(`/api/gis/check?lat=${lat}&lng=${lng}`);
+                    setGisFlags(res.data.data.flags);
+                  } catch (e) {
+                    toast.error("Failed to check GIS risk zones");
+                  }
+                }} />
                 {position && <Marker position={[position.lat, position.lng]} />}
               </MapContainer>
             </div>
 
             {position ? (
-              <p className="text-sm text-forest font-medium">
-                📍 Selected: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
-              </p>
+              <div className="mb-4">
+                <p className="text-sm text-forest font-medium mb-3">
+                  📍 Selected: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
+                </p>
+                {gisFlags.length > 0 && (
+                  <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-red-600 mb-2 uppercase tracking-wide">
+                      Environmental Risk Layers Detected
+                    </p>
+                    <ul className="space-y-1.5">
+                      {gisFlags.map((flag: any, i) => (
+                        <li key={i} className="text-sm text-red-700 flex items-center gap-2">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold
+                            ${flag.severity === "HIGH" ? "bg-red-200 text-red-800" : "bg-amber-200 text-amber-800"}`}>
+                            {flag.severity} RISK
+                          </span>
+                          {flag.layerName} (approx. {flag.distanceM}m away)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             ) : (
-              <p className="text-sm text-gray-400">No location selected yet</p>
+              <p className="text-sm text-gray-400 mb-4">No location selected yet</p>
             )}
 
-            <div className="flex justify-between mt-6">
+            <div className="flex justify-between mt-2">
               <button onClick={() => setStep(0)}
                       className="flex items-center gap-2 text-gray-500
                                  hover:text-gray-700 text-sm">
                 <ChevronLeft size={16} /> Back
               </button>
               <button onClick={() => setStep(2)}
+                      disabled={!position}
                       className="flex items-center gap-2 bg-forest text-white
                                  px-6 py-2.5 rounded-lg text-sm font-medium
-                                 hover:bg-green transition">
+                                 hover:bg-green transition disabled:opacity-50">
                 Next <ChevronRight size={16} />
               </button>
             </div>

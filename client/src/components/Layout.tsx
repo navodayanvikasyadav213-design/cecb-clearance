@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useAuthStore, Role } from "../store/authStore";
 import { api } from "../config/api";
 import toast from "react-hot-toast";
-import { Home, FileText, PlusCircle, Users, BookOpen, LogOut, ChevronRight } from "lucide-react";
+import { Home, FileText, PlusCircle, Users, BookOpen, LogOut, ChevronRight, Globe } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const NAV_BY_ROLE: Record<Role, { label: string; path: string; icon: any }[]> = {
   PROPONENT: [
@@ -36,6 +37,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const navigate         = useNavigate();
   const navItems         = NAV_BY_ROLE[user?.role || "PROPONENT"] || [];
+  const { t, i18n }      = useTranslation();
 
   const handleLogout = async () => {
     try {
@@ -83,7 +85,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   >
     <item.icon size={15} className="shrink-0" />
-    {item.label}
+    {t(item.label)}
   </NavLink>
 ))}       </nav>
 
@@ -98,12 +100,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </p>
           </div>
           <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'hi' : 'en')}
+            className="flex items-center gap-2 text-pale hover:text-white transition text-xs w-full mb-3"
+          >
+            <Globe size={13} />
+            {i18n.language === 'en' ? 'हिंदी' : 'English'}
+          </button>
+          <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-pale hover:text-gold
                        transition text-xs w-full"
           >
             <LogOut size={13} />
-            Sign out
+            {t('Logout')}
           </button>
         </div>
       </aside>

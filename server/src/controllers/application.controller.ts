@@ -6,10 +6,10 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { AppError } from "../middleware/errorHandler";
 import { writeAuditEvent } from "../utils/audit";
 import { assertTransition } from "../services/statusMachine";
-import {
   CreateApplicationInput,
   UpdateApplicationInput,
 } from "../routes/applications/application.schema";
+import { createNotification, emitAppStatusUpdate } from "../services/notification.service";
 
 const prisma = new PrismaClient();
 
@@ -55,6 +55,35 @@ export const uploadDocument = asyncHandler(
         fileName: file.originalname,
       },
     });
+
+    // Trigger OCR asynchronously so as not to block the upload
+    (async () => {
+      try {
+        const fs = require("fs");
+        const fileBuffer = await fs.promises.readFile(file.path);
+        let extractedText = "";
+
+        if (file.mimetype === "application/pdf") {
+          const pdfParse = require("pdf-parse");
+          const data = await pdfParse(fileBuffer);
+          extractedText = data.text;
+        } else if (file.mimetype.startsWith("image/")) {
+          const Tesseract = require("tesseract.js");
+          const { data } = await Tesseract.recognize(fileBuffer, "eng");
+          extractedText = data.text;
+        }
+
+        if (extractedText.trim()) {
+          await prisma.document.update({
+            where: { id: document.id },
+            data: { ocrText: extractedText.trim() },
+          });
+          console.log(`OCR successful for document ${document.id}`);
+        }
+      } catch (e) {
+        console.error("OCR Pipeline Error:", e);
+      }
+    })();
 
     res.status(201).json({ success: true, data: { document } });
   }
@@ -188,6 +217,9 @@ export const submitApplication = asyncHandler(
       payload:       { from: "DRAFT", to: "SUBMITTED" },
     });
 
+    emitAppStatusUpdate(id, "SUBMITTED");
+    await createNotification(app.proponentId, id, "STATUS_UPDATE", "Your application has been submitted successfully.");
+
     res.json({ success: true, data: { application: updated } });
   }
 );
@@ -212,6 +244,9 @@ export const startScrutiny = asyncHandler(
       applicationId: id,
       payload:       { from: "SUBMITTED", to: "UNDER_SCRUTINY" },
     });
+
+    emitAppStatusUpdate(id, "UNDER_SCRUTINY");
+    await createNotification(app.proponentId, id, "STATUS_UPDATE", "Your application is now under scrutiny.");
 
     res.json({ success: true, data: { application: updated } });
   }
@@ -244,6 +279,9 @@ export const issueEds = asyncHandler(
       payload:       { deficiencies },
     });
 
+    emitAppStatusUpdate(id, "EDS");
+    await createNotification(app.proponentId, id, "EDS_ISSUED", "Essential details sought for your application.");
+
     res.json({ success: true, message: "EDS issued" });
   }
 );
@@ -270,7 +308,9 @@ export const referApplication = asyncHandler(
       payload:       { from: "UNDER_SCRUTINY", to: "REFERRED" },
     });
 
-    // TODO Day 8: trigger gist generation Bull job here
+    // Trigger gist generation Bull job here (handled in route right now or you can put it if you want)
+    emitAppStatusUpdate(id, "REFERRED");
+    await createNotification(app.proponentId, id, "STATUS_UPDATE", "Your application has been referred for MoM generation.");
 
     res.json({ success: true, data: { application: updated } });
   }
